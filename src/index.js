@@ -32,15 +32,32 @@ export default function checkDuplicatedNodes(babel, ast) {
     return val
   }
 
+  /* https://github.com/babel/babel/blob/bff6298578df194324e42a002b4b337d65bf0eb3/packages/babel-parser/test/helpers/runFixtureTests.js#L110 */
+  const compactFixture = (jsonString) => {
+    return jsonString.replace(
+      /"loc": \{\s+"start":\s\{\s+"line": (\d+),\s+"column": (\d+)\s+\},\s+"end":\s\{\s+"line": (\d+),\s+"column": (\d+)\s+\s+\}(?:,\s+"identifierName": "(\S+)")?\s+\}/gm,
+      (_, p1, p2, p3, p4, p5) => {
+        return (
+          `"loc":{"start":{"line":${p1},"column":${p2}},"end":{"line":${p3},"column":${p4}}` +
+          (p5 ? `,"identifierName":"${p5}"}` : "}")
+        );
+      },
+    );
+  }
+
+  const formatASTNode = (node) => {
+    return compactFixture(JSON.stringify(node, hidePrivateProperties, 2));
+  }
+
   babel.types.traverseFast(ast, node => {
     registerChildren(node)
 
     if (nodes.has(node)) {
       throw new Error(
         'Do not reuse nodes. Use `t.cloneNode` (or `t.clone`/`t.cloneDeep` if using babel@6) to copy them.\n' +
-          JSON.stringify(node, hidePrivateProperties, 2) +
+          formatASTNode(node) +
           '\nParent:\n' +
-          JSON.stringify(parents.get(node), hidePrivateProperties, 2),
+          formatASTNode(parents.get(node)),
       )
     }
 
